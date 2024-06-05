@@ -34,6 +34,7 @@ expressApp.set('view engine', 'liquid')
 
 const expressServer = createServer(expressApp);
 const io = new Server(expressServer);
+console.log("Number of sockets", io.of("/").sockets.size);
 
 expressServer.listen(
     port,
@@ -44,7 +45,8 @@ import * as ngrok from "@ngrok/ngrok";
 const getUrl = new Promise((resolve) => {
     ngrok.forward({
         addr: 8080,
-        authtoken: "2hMl8myT0mtkzDnhNifZRTKOBfX_6EUnMgAJPNVY8HB9fSbHH"
+        authtoken: "2hMl8myT0mtkzDnhNifZRTKOBfX_6EUnMgAJPNVY8HB9fSbHH",
+        request_header_add: ["ngrok-skip-browser-warning:true"]  // doesn't work
     }).then((listener) => {
         const url = listener.url();
         console.log(`server at ${url}`);
@@ -61,22 +63,34 @@ expressApp.get('/', (req, res, next) => {
         }));
 });
 
-let allMessages = "";
+expressApp.post("/refresh", (req, res) => {
+    const uuid = req.body.uuid;
+    io.sockets.to(uuid).emit("message", allMessages);
+    res.send({});
+});
+
+let allMessages = "Game server has been reset\n";
 const newlines = /\n/g;
 const firstline = /.*\n/;
 
-function sendMessage(message, socket) {
-    const matches = contents.allMessages(allMessages);
+let players = new Map();
+
+function sendMessage(message) {
+    const matches = allMessages.match(newlines);
     if (matches !== null && matches.length >= 25) {
         allMessages = allMessages.replace(firstline, "");
     }
-    allMessages = contents.concat(messages, "\n");
-    socket.broadcast.emit("message", message);
+    allMessages = allMessages.concat(message, "\n");
+        players.forEach((socket, uuid) => {
+        socket.emit("message", allMessages);
+    });
 }
 
 io.on('connection', (socket) => {
-    console.log(`connected ${socket.handshake.auth.uuid}`);
+    players.set(socket.handshake.auth.uuid, socket);
+    sendMessage(`connected ${socket.handshake.auth.uuid}`);
     socket.on('disconnect', () => {
-        console.log(`disconnected ${socket.handshake.auth.uuid}`);
+        players.delete(socket.handshake.auth.uuid);
+        sendMessage(`disconnected ${socket.handshake.auth.uuid}`);
     });
 });

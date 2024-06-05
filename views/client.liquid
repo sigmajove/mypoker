@@ -76,7 +76,6 @@
     document.getElementById("register").textContent = `uuid: ${uuid}`;
 
     const myURL = "{{myurl}}";
-    console.log(`my url is ${myURL}`);
   </script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -87,9 +86,30 @@
     });
 
     socket.on("connect", () => {
-        socket.on("message", (msg) => putLine(msg));
+        socket.on("message", (msg) => {
+            const element = document.getElementById("messages");
+            element.textContent = msg;
+            element.scrollTop = 25 * 25;
+        });
+        socket.on("connect_error", (err) => {
+            console.error(`connect_error due to ${err.message}`);
+        });
+        // restAPI("refresh");
     });
 
+    function restAPI(route) {
+        return fetch(`${myURL}/${route}`, {
+            method: "POST",
+            body: {
+                uuid: uuid
+            }
+        })
+    };
+
+    const newlines = /\n/g;
+    const firstline = /.*\n/;
+
+    /*
     const newlines = /\n/g;
     const firstline = /.*\n/;
 
@@ -104,6 +124,7 @@
       msg.textContent = contents;
       msg.scrollTop = 25 * 25;
     }
+    */
 
     function setPageName(me) {
       // Display uuid for debugging purposes.
