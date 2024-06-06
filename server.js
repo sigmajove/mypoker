@@ -1,26 +1,17 @@
 import express from 'express';
 import {
-    Server
+    Server as socketIoServer
 } from "socket.io";
 
-// Nonsense to get the current directory so that the express sendFile
-// function will work.
-import path from 'node:path';
 import {
-    fileURLToPath
-} from 'node:url';
-
-import {
-    createServer
+    createServer as httpCreateServer
 } from "node:http";
 
-import { Liquid } from 'liquidjs';
+import {
+    Liquid
+} from 'liquidjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const port = process.env.PORT || 8080;
-const engine = new Liquid();
+const liquidEngine = new Liquid();
 
 const expressApp = express();
 expressApp.use(express.json());
@@ -28,13 +19,15 @@ expressApp.use(express.urlencoded({
     extended: true
 }));
 expressApp.use(express.static('public'));
-expressApp.engine('liquid', engine.express());
+expressApp.engine('liquid', liquidEngine.express());
 expressApp.set('views', './views');
 expressApp.set('view engine', 'liquid')
 
-const expressServer = createServer(expressApp);
-const io = new Server(expressServer);
+const expressServer = httpCreateServer(expressApp);
+const io = new socketIoServer(expressServer);
 console.log("Number of sockets", io.of("/").sockets.size);
+
+const port = process.env.PORT || 8080;
 
 expressServer.listen(
     port,
@@ -46,7 +39,7 @@ const getUrl = new Promise((resolve) => {
     ngrok.forward({
         addr: 8080,
         authtoken: "2hMl8myT0mtkzDnhNifZRTKOBfX_6EUnMgAJPNVY8HB9fSbHH",
-        request_header_add: ["ngrok-skip-browser-warning:true"]  // doesn't work
+        request_header_add: ["ngrok-skip-browser-warning:true"] // doesn't work
     }).then((listener) => {
         const url = listener.url();
         console.log(`server at ${url}`);
@@ -81,7 +74,7 @@ function sendMessage(message) {
         allMessages = allMessages.replace(firstline, "");
     }
     allMessages = allMessages.concat(message, "\n");
-        players.forEach((socket, uuid) => {
+    players.forEach((socket, uuid) => {
         socket.emit("message", allMessages);
     });
 }
