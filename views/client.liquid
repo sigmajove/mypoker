@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <title>Rational Poker Night</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap"
-    rel="stylesheet">
-  <style>
+<title>Rational Poker Night</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href=
+"https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap"
+rel="stylesheet">
+<style>
     html {
       font-family: "DM Sans", sans-serif;
       font-optical-sizing: auto;
@@ -40,97 +39,31 @@
       column-gap: 10px;
       align-items: left
     }
-  </style>
+</style>
 </head>
 
 <body>
-  <h2 id="register">Register Player</h2>
-  <div class="grid-container">
-    <table class="left-item" style="grid-area:left; display: block">
-      <tbody id="table">
-        <tr>
-          <th>Player</th>
-          <th>Score</th>
-          <th>Status</th </tr>
-      </tbody>
-    </table>
-    <pre id="messages" class="right-item" style="height:100px;width:360px;border:1px solid #ccc;
-              overflow:auto;"></pre>
-    <div class="bottom-item">
-      <button onclick="updateDealer()">Deal</button
-    </div>
-  </div>
-  <div id="choosename" style: "display: block">
-  </div>
-  <script>
-    // Use a uuid to uniquely identify this browser tab.
-    // The uuid is preserved across window refreshes.
-    var uuid = sessionStorage.getItem("uuid");
-    if (uuid === null) {
-      uuid = crypto.randomUUID();
-      console.log("New uuid", uuid);
-      sessionStorage.setItem("uuid", uuid);
-    } else {
-      console.log("Kept uuid", uuid);
-    }
-    document.getElementById("register").textContent = `uuid: ${uuid}`;
-
-    const myURL = "{{myurl}}";
-  </script>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io({
-        auth: {
-            uuid: uuid
-        }
-    });
-
-    socket.on("connect", () => {
-        socket.on("message", (msg) => {
-            const element = document.getElementById("messages");
-            element.textContent = msg;
-            element.scrollTop = 25 * 25;
-        });
-        socket.on("connect_error", (err) => {
-            console.error(`connect_error due to ${err.message}`);
-        });
-        // restAPI("refresh");
-    });
-
-    function restAPI(route) {
-        return fetch(`${myURL}/${route}`, {
-            method: "POST",
-            body: {
-                uuid: uuid
-            }
-        })
-    };
-
-    const newlines = /\n/g;
-    const firstline = /.*\n/;
-
-    /*
-    const newlines = /\n/g;
-    const firstline = /.*\n/;
-
-    function putLine(line) {
-      const msg = document.getElementById("messages");
-      let contents = msg.textContent;
-      let matches = contents.match(newlines);
-      if (matches !== null && matches.length >= 25) {
-        contents = contents.replace(firstline, "");
-      }
-      contents = contents.concat(line, "\n");
-      msg.textContent = contents;
-      msg.scrollTop = 25 * 25;
-    }
-    */
-
-    function setPageName(me) {
-      // Display uuid for debugging purposes.
-      document.getElementById("register").textContent = `${me}: ${uuid}`;
-    }
-
-  </script>
+<h2 id="register">Register Player</h2>
+<div class="grid-container">
+<table class="left-item" style="grid-area:left; display: block">
+<tbody id="table">
+<tr>
+<th>Player</th>
+<th>Score</th>
+<th>Status</th>
+</tr>
+</tbody>
+</table>
+<pre id="messages" class="right-item" style=
+"height:100px;width:360px;border:1px solid #ccc; overflow:auto;"></pre>
+<div class="bottom-item"><button onclick=
+"updateDealer()">Deal</button></div>
+</div>
+<div id="choosename" style="display: block"></div>
+<script>
+const myURL = "{{myurl}}";
+</script> 
+<script src="/socket.io/socket.io.js"></script> 
+<script src="/client.js" type="text/javascript"></script>
 </body>
 </html>
