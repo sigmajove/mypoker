@@ -32,27 +32,10 @@ expressServer.listen(
     port,
     () => console.log(`Server running at ${port}`));
 
-import * as ngrok from "@ngrok/ngrok";
-
-const getUrl = new Promise((resolve) => {
-    ngrok.forward({
-        addr: 8080,
-        authtoken: "2hMl8myT0mtkzDnhNifZRTKOBfX_6EUnMgAJPNVY8HB9fSbHH",
-        request_header_add: ["ngrok-skip-browser-warning:true"] // doesn't work
-    }).then((listener) => {
-        const url = listener.url();
-        console.log(`server at ${url}`);
-        resolve(url);
-    }).catch((error) => {
-        throw error;
+expressApp.get('/', (req, res) => {
+    res.render("client", {
+        myurl: `${req.protocol}://${req.get('host')}`
     });
-});
-
-expressApp.get('/', (req, res, next) => {
-    getUrl.then((url) =>
-        res.render("client", {
-            myurl: url
-        }));
 });
 
 
