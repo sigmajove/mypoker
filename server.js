@@ -32,7 +32,10 @@ expressServer.listen(
     port,
     () => {
         const now = new Date();
-        console.log(`Server started at ${now.toString()}`);
+        const pstNow = now.toLocaleString("en-US", {
+            timeZone: "America/Los_Angeles"
+        });
+        console.log(`Server started at ${pstNow.toString()} (California time)`);
         console.log(`Server listening on ${port}`)
     });
 
