@@ -30,7 +30,11 @@ const port = process.env.PORT || 8080;
 
 expressServer.listen(
     port,
-    () => console.log(`Server running at ${port}`));
+    () => {
+        const now = new Date();
+        console.log(`Server started at ${now.toString()}`);
+        console.log(`Server listening on ${port}`)
+    });
 
 expressApp.get('/', (req, res) => {
     res.render("client", {
