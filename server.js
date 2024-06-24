@@ -28,6 +28,11 @@ const io = new socketIoServer(expressServer);
 
 const port = process.env.PORT || 8080;
 
+const eventHandlers = new Map([
+    ["newGame", newGame],
+    ["guess", guess],
+]);
+
 expressServer.listen(
     port,
     () => {
@@ -65,6 +70,11 @@ expressApp.post("/getid", (req, res) => {
 // Conceptually, the order is circular.
 let players = [];
 
+// Global state for the guess-the-number game.
+// These should probably be collected into an object.
+let guessMap = null;
+let secretNumber;
+
 // The name of the next dealer or null if none is assigned.
 let nextDealer = null;
 
@@ -86,6 +96,12 @@ function* allSockets() {
     }
 }
 
+function drawDealerButton(obj) {
+    obj.socket.emit("game", `<p>Press to begin the next hand
+<button onclick=
+"theSocket.emit('newGame')">Deal</button></p>`);
+}
+
 // Advances nextDealer to the next present player.
 // Leaves nextDealer unchanged nextDealer is the only player present.
 // Sets nextDealer to null if there are no players present.
@@ -100,8 +116,14 @@ function advanceNextDealer() {
         if (iter >= players.length) {
             iter = 0;
         }
-        if (players[iter].uuid !== null) {
-            nextDealer = players[iter].player;
+        const obj = players[iter];
+        if (obj.uuid !== null) {
+            nextDealer = obj.player;
+            if (guessMap === null) {
+                obj.socket.broadcast.emit(
+                    "game", "Waiting for next hand to begin.");
+                drawDealerButton(obj);
+            }
             return;
         }
         if (iter == j) {
@@ -139,7 +161,7 @@ expressApp.post("/enable", (req, res) => {
 // Returns a list of that have become disconnected.
 expressApp.post("/disconnected", (req, res) => {
     res.send({
-        disconnected: players.filter((obj) => obj.uuid === undefined)
+        disconnected: players.filter((obj) => obj.uuid === null)
             .map((obj) => obj.player)
     });
 });
@@ -170,21 +192,31 @@ expressApp.post("/setname", (req, res) => {
         });
         if (nextDealer === null) {
             nextDealer = player;
+            if (guessMap === null) {
+                drawDealerButton(players[players.length - 1]);
+            }
         }
         newSockets.delete(uuid);
         sendMessage(`${player} has joined the game.`);
         sendUpdate();
+        if (guessMap !== null || nextDealer != player) {
+            socket.emit("game", "Waiting for next hand to begin.");
+        }
         res.send({
             player: player
         });
         return;
     }
-    if (obj.uuid === undefined) {
+    if (obj.uuid === null) {
         // A player who left the game has returned.
         obj.uuid = uuid;
         obj.socket = socket;
         newSockets.delete(uuid);
         sendMessage(`${player} has returned to the game.`);
+        if (nextDealer === null) {
+            nextDealer = player;
+        }
+        socket.emit("game", "Waiting for next hand to begin.");
         sendUpdate();
         res.send({
             player: player
@@ -198,12 +230,7 @@ expressApp.post("/setname", (req, res) => {
     }
 });
 
-expressApp.post("/sendmessage", (req, res) => {
-    sendMessage(req.body.message);
-    res.send({});
-});
-
-let allMessages = "Game server has been reset.\n";
+let allMessages = "The game server has been reset.\n";
 const newlines = /\n/g;
 const firstline = /.*\n/;
 
@@ -219,7 +246,7 @@ function sendMessage(message) {
 }
 
 function playerState() {
-    return players.filter((obj) => obj.uuid !== undefined).
+    return players.filter((obj) => obj.uuid !== null).
         map((obj) => ({
             player: obj.player,
             score: obj.score,
@@ -241,13 +268,23 @@ io.on('connection', (socket) => {
         newSockets.delete(socketId);
         const obj = players.find((obj) => obj.uuid == socketId);
         if (obj !== undefined) {
-            delete obj.uuid;
+            obj.uuid = null;
             delete obj.socket;
             if (obj.player == nextDealer) {
                 advanceNextDealer();
             }
+            if (guessMap !== null) {
+                guessMap.delete(obj.player);
+                checkGuesses();
+            }
             sendMessage(`${obj.player} has left the game.`);
             sendUpdate();
+        }
+    });
+    socket.onAny((eventName, ...args) => {
+        const handler = eventHandlers.get(eventName);
+        if (handler !== undefined) {
+            handler.apply(null, args);
         }
     });
 
@@ -255,3 +292,61 @@ io.on('connection', (socket) => {
     // It will be get transferred to players by /setname.
     pendingSockets.set(socketId, socket);
 });
+
+function newGame() {
+    sendMessage("New round of guess the number");
+    let gamers = players.filter((obj) => obj.uuid !== null);
+    guessMap = new Map;
+    secretNumber = Math.floor(100 * Math.random());
+
+    for (let i = 0; i < gamers.length; ++i) {
+        let obj = gamers[i];
+        guessMap.set(obj.player, null);
+        obj.socket.emit("game", `There is a secret number from 0 to 99.<br>
+The player(s) who guesses the closest without going over scores a point.<br>
+<input type="number" id="guess" name="guess" size="2">
+<button onclick="processGuess()">Submit</button>`);
+    }
+}
+
+function guess(player, hisGuess) {
+    guessMap.set(player, hisGuess);
+    checkGuesses();
+}
+
+function checkGuesses() {
+    let allGuessed = true;
+    let bestGuess = null;
+    guessMap.forEach((value) => {
+        if (value === null) {
+            allGuessed = false;
+        }
+        if (value <= secretNumber) {
+            if (bestGuess === null || value > bestGuess) {
+                bestGuess = value;
+            }
+        }
+    });
+    if (!allGuessed) {
+        return;
+    }
+    sendMessage(`The secret number was ${secretNumber}`);
+    if (bestGuess === null) {
+        sendMessage("Everone guessed too high. Nobody got a point.");
+    } else {
+        guessMap.forEach((value, key) => {
+            if (value == bestGuess) {
+                sendMessage(
+                    `${key} gets a point for guessing ${bestGuess}`);
+                let j = players.findIndex((obj) => obj.player == key);
+                if (j >= 0) {
+                    players[j].score += 1;
+                }
+            }
+        });
+    };
+
+    guessMap = null;
+    advanceNextDealer();
+    sendUpdate();
+}

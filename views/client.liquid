@@ -9,31 +9,17 @@
     html {
       font-family: "DM Sans", sans-serif;
       font-optical-sizing: auto;
-      font-weight: 500;
+      font-weight: 500;</div></div>
       font-style: normal;
-    }
-
-    td {
-      padding: 0 15px
-    }
-
-    .status {
-      width: 30px;
-      height: 14px;
-      border: 1px solid black;
     }
 
     .right-item {
       grid-area: right;
     }
 
-    .bottom-item {
-      grid-area: bottom;
-    }
-
     .grid-container {
       display: inline-grid;
-      grid-template-areas: "left right" "bottom bottom";
+      grid-template-areas: "left right";
       column-gap: 10px;
       align-items: left
     }
@@ -53,10 +39,10 @@
 </tbody>
 </table>
 <pre id="messages" class="right-item" style=
-"height:100px;width:360px;border:1px solid #ccc; overflow:auto;"></pre>
-<div id="gameWindow" class="bottom-item">
-Waiting for next hand to begin.
+"height:100px;width:360px;margin:0;border:3px solid #ccc; overflow:auto;"></pre>
 </div>
+<div style="height:10px;">&nbsp</div>
+<div id="gameWindow" class="bottom-item"></div>
 <div id="choosename" style="display: block"></div>
 <script>
 const myURL = "{{myurl}}";

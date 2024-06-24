@@ -1,3 +1,6 @@
+let theSocket;
+let myName;
+
 const getSocketId = new Promise((resolve) => {
     fetch(`${myURL}/getid`, {
             method: "POST",
@@ -13,12 +16,16 @@ const getSocketId = new Promise((resolve) => {
                     player: sessionStorage.getItem("player")
                 }
             });
+            theSocket = socket;
             socket.on("message", (msg) => {
                 const element = document.getElementById("messages");
                 element.textContent = msg;
                 element.scrollTop = 25 * 25;
             });
             socket.on("update", (players) => updateTable(players));
+            socket.on("game", (html) => {
+                document.getElementById("gameWindow").innerHTML = html;
+            });
             socket.on("connect_error", (err) => {
                 console.error(`connect_error due to ${err.message}`);
             });
@@ -71,7 +78,6 @@ async function setName(player, socketId) {
         })
     });
     response = await response.json();
-    console.log("setname returns", response);
     {
         const error = response.error;
         if (error !== undefined) {
@@ -83,8 +89,10 @@ async function setName(player, socketId) {
         if (player !== undefined) {
             document.getElementById("choosename").style.display =
                 "none";
-            setPageName(player, socketId);
+            document.title = player;
+            document.getElementById("register").textContent = player;
             sessionStorage.setItem("player", player);
+            myName = player;
             return;
         }
     } {
@@ -92,27 +100,13 @@ async function setName(player, socketId) {
         if (inuse !== undefined) {
             document.getElementById("choosename").innerHTML =
                 `<div>The name ${player} is in use.</div>
-Select a new name <input type="text" id="newplayer"><br>
-<button onclick="namePlayer(true)">Submit</button>`;
+Select a new name <input type="text" id="newplayer"><br>`;
+            detectReturn();
             return;
         }
     }
     console.error("Unexpected response from /setname");
     console.error(response);
-}
-
-function foundPlayer(player) {
-    sessionStorage.setItem("player", player);
-    document.getElementById("register").textContent = player;
-    fetch(`${myURL}/sendmessage`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            message: `${player} has arrived`
-        })
-    });
 }
 
 // Outputs a menu for selecting a name, including radio buttons
@@ -130,10 +124,20 @@ function chooseName(disconnected) {
     document.getElementById("choosename").innerHTML = html.join("");
 }
 
+function detectReturn() {
+    document.getElementById("newplayer").addEventListener("keyup",
+        ({key}) => {
+            console.log("Listener", key);
+            if (key === "Enter") {
+                namePlayer(true);
+            }
+        });
+}
+
 function nameInput() {
     document.getElementById("choosename").innerHTML =
-        `Select a name <input type="text" id="newplayer"><br>
-<button onclick="namePlayer(true)">Submit</button>`;
+        `Select a name <input type="text" id="newplayer">`;
+    detectReturn();
 }
 
 async function namePlayer(retry) {
@@ -148,14 +152,15 @@ async function namePlayer(retry) {
     }
     if (p != "") {
         setName(p, await getSocketId);
-    };
+    }
 }
 
 function updateTable(players) {
     const table = document.getElementById("table");
 
     table.innerHTML =
-        "<tr><th>Player</th><th>Score</th><th>Status</th></tr>";
+        `<tr><th style="text-align:left;">Player</th>
+<th>Score</th><th>Status</th></tr>`;
 
     players.forEach((row) => {
         const tr = document.createElement("tr");
@@ -164,6 +169,7 @@ function updateTable(players) {
         tr.appendChild(td);
 
         td = document.createElement("td");
+        td.style = "padding-left:15px;"
         td.appendChild(document.createTextNode(row.score));
         tr.appendChild(td);
 
@@ -177,7 +183,17 @@ function updateTable(players) {
     });
 }
 
-function setPageName(me, uuid) {
-    // Display uuid for debugging purposes.
-    document.getElementById("register").textContent = `${me}: ${uuid}`;
+function processGuess() {
+    const guess = document.getElementById("guess");
+    const value = guess.value;
+    if (value.length > 0) {
+        const number = Number(value);
+        if (number >= 0 && number <= 99) {
+            theSocket.emit("guess", myName, number);
+            document.getElementById("gameWindow").innerHTML =
+                "Waiting for all players to guess";
+            return;
+        }
+    }
+    guess.value = "";
 }
