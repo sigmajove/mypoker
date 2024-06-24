@@ -168,7 +168,9 @@ function updateTable(players) {
         tr.appendChild(td);
 
         td = document.createElement("td");
-        td.appendChild(document.createTextNode(""));  // For now
+        td.appendChild(document.createTextNode(
+            row.dealer ? "dealer" : ""
+        ));
         tr.appendChild(td);
 
         table.appendChild(tr);

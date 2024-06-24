@@ -65,6 +65,9 @@ expressApp.post("/getid", (req, res) => {
 // Conceptually, the order is circular.
 let players = [];
 
+// The name of the next dealer or null if none is assigned.
+let nextDealer = null;
+
 // These are sockets that have been created but might not have listeners.
 const pendingSockets = new Map();
 
@@ -79,6 +82,31 @@ function* allSockets() {
     for (const obj of players) {
         if (obj.socket !== undefined) {
             yield obj.socket;
+        }
+    }
+}
+
+// Advances nextDealer to the next present player.
+// Leaves nextDealer unchanged nextDealer is the only player present.
+// Sets nextDealer to null if there are no players present.
+function advanceNextDealer() {
+    let j = players.findIndex((obj) => obj.player == nextDealer);
+    if (j < 0) {
+        throw new Error("nextDealer not found");
+    }
+    let iter = j;
+    for (;;) {
+        iter += 1;
+        if (iter >= players.length) {
+            iter = 0;
+        }
+        if (players[iter].uuid !== null) {
+            nextDealer = players[iter].player;
+            return;
+        }
+        if (iter == j) {
+            nextDealer == null;
+            return;
         }
     }
 }
@@ -140,6 +168,9 @@ expressApp.post("/setname", (req, res) => {
             uuid: uuid,
             socket: socket
         });
+        if (nextDealer === null) {
+            nextDealer = player;
+        }
         newSockets.delete(uuid);
         sendMessage(`${player} has joined the game.`);
         sendUpdate();
@@ -191,7 +222,8 @@ function playerState() {
     return players.filter((obj) => obj.uuid !== undefined).
         map((obj) => ({
             player: obj.player,
-            score: obj.score
+            score: obj.score,
+            dealer: nextDealer !== null && nextDealer == obj.player
         }));
 }
 
@@ -211,6 +243,9 @@ io.on('connection', (socket) => {
         if (obj !== undefined) {
             delete obj.uuid;
             delete obj.socket;
+            if (obj.player == nextDealer) {
+                advanceNextDealer();
+            }
             sendMessage(`${obj.player} has left the game.`);
             sendUpdate();
         }
