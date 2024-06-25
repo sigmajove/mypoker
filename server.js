@@ -50,6 +50,25 @@ expressApp.get('/', (req, res) => {
     });
 });
 
+expressApp.get('/reset', (req, res) => {
+    res.render("reset");
+});
+
+// I don't know how to hide this route from the browser.
+// So I just gave it a wierd name.
+expressApp.post("/ftkex0g3ouu39hiqj4tq", (req, res) => {
+    io.emit("reload");
+    initializeGame();
+    res.send(`<html>
+<head>
+<meta http-equiv="refresh"
+           content="3; url=${req.protocol}://${req.get('host')}/" />
+</head>
+<body>
+The game has been reset. Redirecting...
+</body>
+</html>`);
+});
 
 let idCounter = 0;
 expressApp.post("/getid", (req, res) => {
@@ -68,7 +87,7 @@ expressApp.post("/getid", (req, res) => {
 
 // The players, in the order in which they take turns.
 // Conceptually, the order is circular.
-let players = [];
+let players;
 
 // Global state for the guess-the-number game.
 // These should probably be collected into an object.
@@ -76,13 +95,26 @@ let guessMap = null;
 let secretNumber;
 
 // The name of the next dealer or null if none is assigned.
-let nextDealer = null;
+let nextDealer;
 
-// These are sockets that have been created but might not have listeners.
+// When a socket is first created, we have its uuid but it is not yet
+// associated with a player.  It might not yet have listeners attached.
+// We save the socket in this map.
 const pendingSockets = new Map();
 
-// Sockets that have listeners, but are not yet attached to players.
+// Once the client has attached all the listeners to the socket,
+// it calls /enable. This post causes the socket to be moved from
+// pendingSockets to newSockets, and messages to be sent on the new
+// socket to initialize the client's screen. The socket is still
+// not associated with a user.
 const newSockets = new Map();
+
+// Next the client comes up with a proposed name, either from the UI
+// or session storage, and calls /setname. The catch is, given potential
+// races, we cannot be sure if the name is available. /setname can repeatedly
+// fail and needs to be recalled with a different name. When /setname succeeds,
+// it takes the socket out of newSockets and installs it in players with the
+// player name and uuid.
 
 // A generator that allows iterating over all sockets with listeners.
 function* allSockets() {
@@ -98,15 +130,19 @@ function* allSockets() {
 
 function drawDealerButton(obj) {
     obj.socket.emit("game", `<p>Press to begin the next hand
-<button onclick=
-"theSocket.emit('newGame')">Deal</button></p>`);
+<button onclick="theSocket.emit('newGame')">Deal</button></p>`);
 }
+
+const waitingMessage = "Waiting for the next hand to begin."
 
 // Advances nextDealer to the next present player.
 // Leaves nextDealer unchanged nextDealer is the only player present.
 // Sets nextDealer to null if there are no players present.
 function advanceNextDealer() {
-    let j = players.findIndex((obj) => obj.player == nextDealer);
+    if (nextDealer === null) {
+       return;
+    }
+    const j = players.findIndex((obj) => obj.player == nextDealer);
     if (j < 0) {
         throw new Error("nextDealer not found");
     }
@@ -120,14 +156,12 @@ function advanceNextDealer() {
         if (obj.uuid !== null) {
             nextDealer = obj.player;
             if (guessMap === null) {
-                obj.socket.broadcast.emit(
-                    "game", "Waiting for next hand to begin.");
                 drawDealerButton(obj);
             }
             return;
         }
         if (iter == j) {
-            nextDealer == null;
+            nextDealer = null;
             return;
         }
     }
@@ -158,7 +192,7 @@ expressApp.post("/enable", (req, res) => {
     })
 });
 
-// Returns a list of that have become disconnected.
+// Returns a list of players that have become disconnected.
 expressApp.post("/disconnected", (req, res) => {
     res.send({
         disconnected: players.filter((obj) => obj.uuid === null)
@@ -200,7 +234,7 @@ expressApp.post("/setname", (req, res) => {
         sendMessage(`${player} has joined the game.`);
         sendUpdate();
         if (guessMap !== null || nextDealer != player) {
-            socket.emit("game", "Waiting for next hand to begin.");
+            socket.emit("game", waitingMessage);
         }
         res.send({
             player: player
@@ -215,8 +249,10 @@ expressApp.post("/setname", (req, res) => {
         sendMessage(`${player} has returned to the game.`);
         if (nextDealer === null) {
             nextDealer = player;
+            drawDealerButton(obj);
+        } else {
+            socket.emit("game", waitingMessage);
         }
-        socket.emit("game", "Waiting for next hand to begin.");
         sendUpdate();
         res.send({
             player: player
@@ -230,7 +266,16 @@ expressApp.post("/setname", (req, res) => {
     }
 });
 
-let allMessages = "The game server has been reset.\n";
+let allMessages;
+initializeGame();
+
+function initializeGame() {
+    players = [];
+    guessMap = null;
+    nextDealer = null;
+    allMessages = "The game server has been reset.\n";
+}
+
 const newlines = /\n/g;
 const firstline = /.*\n/;
 
@@ -348,5 +393,10 @@ function checkGuesses() {
 
     guessMap = null;
     advanceNextDealer();
+    for (const obj of players) {
+        if (obj.uuid !== null && obj.player != nextDealer) {
+            obj.socket.emit("game", waitingMessage);
+        }
+    }
     sendUpdate();
 }

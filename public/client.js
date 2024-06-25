@@ -1,6 +1,9 @@
 let theSocket;
 let myName;
 
+// This promise kicks off the dance that establishes the connection
+// between the client and the server. The promise resolves to the
+// uuid of the socket.
 const getSocketId = new Promise((resolve) => {
     fetch(`${myURL}/getid`, {
             method: "POST",
@@ -11,12 +14,13 @@ const getSocketId = new Promise((resolve) => {
         .then((response) => {
             const socketId = response.id;
             const socket = io({
-                auth: {
-                    socketId: socketId,
-                    player: sessionStorage.getItem("player")
-                }
+                auth: { socketId: socketId }
             });
             theSocket = socket;
+            socket.on("reload", () => {
+                sessionStorage.removeItem("player");
+                window.location.reload();
+            });
             socket.on("message", (msg) => {
                 const element = document.getElementById("messages");
                 element.textContent = msg;
