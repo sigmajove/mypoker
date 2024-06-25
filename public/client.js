@@ -1,6 +1,28 @@
 let theSocket;
 let myName;
 
+// It doesn't make any sense, but this appears to be what Chrome wants.
+function genericWarning(e) {
+    e.returnValue = "false";
+}
+
+function setWarning() {
+    // Add a warning on reload, since that kicks the player out
+    // of the current hand.  I know of no way to change the generic
+    // warning message.
+    window.addEventListener("beforeunload", genericWarning);
+}
+function clearWarning() {
+    window.removeEventListener("beforeunload", genericWarning);
+}
+
+// An alternative to this hack would be to set a timer when a player leaves
+// to prevent processing for a few seconds. If the player comes back before
+// the timer goes off, pretend like they never left. To make this work,
+// we need a map in the server from the player name to the HTML most recently
+// sent on the "game" message, so we can resend that HTML, which will be erased
+// by the refresh.
+
 // This promise kicks off the dance that establishes the connection
 // between the client and the server. The promise resolves to the
 // uuid of the socket.
@@ -17,7 +39,9 @@ const getSocketId = new Promise((resolve) => {
                 auth: { socketId: socketId }
             });
             theSocket = socket;
+
             socket.on("reload", () => {
+                clearWarning();
                 sessionStorage.removeItem("player");
                 window.location.reload();
             });
@@ -30,6 +54,8 @@ const getSocketId = new Promise((resolve) => {
             socket.on("game", (html) => {
                 document.getElementById("gameWindow").innerHTML = html;
             });
+            socket.on("setwarning", setWarning);
+            socket.on("clearwarning", clearWarning);
             socket.on("connect_error", (err) => {
                 console.error(`connect_error due to ${err.message}`);
             });
@@ -131,7 +157,6 @@ function chooseName(disconnected) {
 function detectReturn() {
     document.getElementById("newplayer").addEventListener("keyup",
         ({key}) => {
-            console.log("Listener", key);
             if (key === "Enter") {
                 namePlayer(true);
             }

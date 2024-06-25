@@ -341,6 +341,12 @@ io.on('connection', (socket) => {
 function newGame() {
     sendMessage("New round of guess the number");
     let gamers = players.filter((obj) => obj.uuid !== null);
+
+    // Set a warning for players in the hand.
+    // The refresh button will kick them out of the hand.
+    for (const obj of gamers) {
+      obj.socket.emit("setwarning");
+    }
     guessMap = new Map;
     secretNumber = Math.floor(100 * Math.random());
 
@@ -394,8 +400,11 @@ function checkGuesses() {
     guessMap = null;
     advanceNextDealer();
     for (const obj of players) {
-        if (obj.uuid !== null && obj.player != nextDealer) {
-            obj.socket.emit("game", waitingMessage);
+        if (obj.uuid !== null) {
+            obj.socket.emit("clearwarning");
+            if (obj.player != nextDealer) {
+                obj.socket.emit("game", waitingMessage);
+            }
         }
     }
     sendUpdate();
