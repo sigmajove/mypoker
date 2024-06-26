@@ -1,6 +1,10 @@
 # vim swap file
 .*.swp
 
+# These are supposed to be a secret.
+# Don't put them in the public repository.
+firebase-credentials.json
+
 # Logs
 logs
 *.log
