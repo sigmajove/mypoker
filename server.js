@@ -107,6 +107,11 @@ expressApp.get('/reset', (req, res) => {
     res.render('reset');
 });
 
+expressApp.get('/crash', (req, res) => {
+    console.log("Server crashed for testing purposes");
+    process.exit(1);
+});
+
 // Define all the endpoints for the RESTful API.
 
 // A source of unique socket ids.
@@ -230,13 +235,21 @@ The game has been reset. Redirecting...
     });
 });
                 
+function restartMessage() {
+    const now = new Date();
+    const pstNow = now.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles'
+    });
+    return `Server started at ${pstNow.toString()} (California time).`;
+}
+
 // Launch the HTTP server.
 expressServer.listen(port, () => {
     const now = new Date();
     const pstNow = now.toLocaleString('en-US', {
         timeZone: 'America/Los_Angeles'
     });
-    console.log(`Server started at ${pstNow.toString()} (California time)`);
+    console.log(restartMessage());
     console.log(`Server listening on ${port}`)
 });
 
@@ -353,7 +366,7 @@ await readPlayers();
 function initializeGame() {
     nextDealer = null;
     guessMap = null;
-    allMessages = 'The game server has been reset.\n';
+    allMessages = `${restartMessage()}\n`;
 }
 
 const newlines = /\n/g;
