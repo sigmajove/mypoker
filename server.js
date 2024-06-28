@@ -108,8 +108,20 @@ expressApp.get('/reset', (req, res) => {
 });
 
 expressApp.get('/crash', (req, res) => {
-    console.log("Server crashed for testing purposes");
-    process.exit(1);
+    res.send(`<html>
+<head>
+<meta http-equiv="refresh"
+           content="3; url=${req.protocol}://${req.get('host')}/" />
+</head>
+<body>
+The server will crash for testing purposes.
+</body>
+</html>`);
+    setTimeout(() => {
+            console.log("Server crashed for testing purposes");
+            process.exit(1);
+        },
+        7000);
 });
 
 // Define all the endpoints for the RESTful API.
@@ -139,7 +151,7 @@ expressApp.post('/enable', (req, res) => {
 expressApp.post('/disconnected', (req, res) => {
     res.send({
         disconnected: players.filter(
-                (obj) => obj.uuid === null).map((obj) => obj.player)
+            (obj) => obj.uuid === null).map((obj) => obj.player)
     });
 });
 
@@ -234,7 +246,7 @@ The game has been reset. Redirecting...
 </html>`);
     });
 });
-                
+
 function restartMessage() {
     const now = new Date();
     const pstNow = now.toLocaleString('en-US', {
