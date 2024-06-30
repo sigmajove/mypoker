@@ -3,9 +3,8 @@ import admin from "firebase-admin";
 import {
     Liquid
 } from "liquidjs";
-import {
-    createServer as httpCreateServer
-} from "node:http";
+import http from "http";
+import https from "https";
 import {
     Server as socketIoServer
 } from "socket.io";
@@ -23,10 +22,23 @@ expressApp.engine("liquid", liquidEngine.express());
 expressApp.set("views", "./views");
 expressApp.set("view engine", "liquid")
 
-const expressServer = httpCreateServer(expressApp);
+let expressServer;
+let port;
+// If there are certficates use https, otherwise use http.
+if (fs.existsSync("certificate.pem") &&
+    fs.existsSync("certificate-chain.pem")) {
+    expressServer = https.createServer({
+            key: fs.readFileSync("certificate.pem"),
+            cert: readFileSync("certificate-chain.pem")
+        },
+        expressApp);
+    port = 443;
+} else {
+    expressServer = http.createServer(expressApp);
+    port = 80;
+}
 const io = new socketIoServer(expressServer);
 
-const port = process.env.PORT || 8080;
 
 // Connect to Firebase.
 // We save the players and their scores after every game so that
@@ -262,7 +274,7 @@ expressServer.listen(port, () => {
         timeZone: 'America/Los_Angeles'
     });
     console.log(restartMessage());
-    console.log(`Server listening on ${port}`)
+    console.log(`Server listening on port ${port}`);
 });
 
 // The global state for the server.
