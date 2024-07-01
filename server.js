@@ -25,11 +25,16 @@ expressApp.set("view engine", "liquid")
 let expressServer;
 let port;
 // If there are certficates use https, otherwise use http.
-if (fs.existsSync("certificate.pem") &&
-    fs.existsSync("certificate-chain.pem")) {
+if (fs.existsSync("poker.sigmajove.com_key.txt") &&
+    fs.existsSync("poker.sigmajove.com.crt") &&
+    fs.existsSync("poker.sigmajove.com.ca-bundle")) {
+    var cert1 = fs.readFileSync("poker.sigmajove.com_key.txt");
+    var cert2 = fs.readFileSync("poker.sigmajove.com.crt");
+    var cert3 = fs.readFileSync("poker.sigmajove.com.ca-bundle");
     expressServer = https.createServer({
-            key: fs.readFileSync("certificate.pem"),
-            cert: readFileSync("certificate-chain.pem")
+            key: cert1,
+            cert: cert2,
+	    ca: cert3
         },
         expressApp);
     port = 443;
