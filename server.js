@@ -29,7 +29,7 @@ if (fs.existsSync("certificate.pem") &&
     fs.existsSync("certificate-chain.pem")) {
     expressServer = https.createServer({
             key: fs.readFileSync("certificate.pem"),
-            cert: readFileSync("certificate-chain.pem")
+            cert: fs.readFileSync("certificate-chain.pem")
         },
         expressApp);
     port = 443;
